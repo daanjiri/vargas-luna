@@ -59,12 +59,12 @@ export const CreateNodeDialog: React.FC<CreateNodeDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Documentation Node</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="type">Type</Label>
             <Select value={type} onValueChange={(value) => setType(value as DocumentationType)}>
               <SelectTrigger id="type">
@@ -80,7 +80,7 @@ export const CreateNodeDialog: React.FC<CreateNodeDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
@@ -90,32 +90,32 @@ export const CreateNodeDialog: React.FC<CreateNodeDialogProps> = ({
             />
           </div>
           {type === 'text' ? (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="content">Content</Label>
               <Textarea
                 id="content"
                 value={content}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                 placeholder="Enter text content"
-                rows={4}
+                className="resize-none h-32 overflow-y-auto"
               />
             </div>
           ) : type === 'image' ? (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="imageUrls">Image URLs (one per line)</Label>
               <Textarea
                 id="imageUrls"
                 value={imageUrls}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setImageUrls(e.target.value)}
                 placeholder="Enter image URLs, one per line"
-                rows={4}
+                className="resize-none h-32 overflow-y-auto"
               />
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground">
                 Add multiple images to create a carousel
               </p>
             </div>
           ) : ['audio', 'pdf', 'link', 'video'].includes(type) ? (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="url">URL</Label>
               <Input
                 id="url"

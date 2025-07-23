@@ -24,8 +24,6 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { DocumentationNodeData, DocumentationType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { AuthButton } from '@/components/auth/auth-button';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -208,12 +206,6 @@ const FlowCanvas = () => {
         <Plus className="w-4 h-4 mr-2" />
         Add Node
       </Button>
-
-      {/* Auth Button */}
-      <AuthButton />
-      
-      {/* Theme Toggle */}
-      <ThemeToggle />
 
       {/* Context Menu */}
       <ContextMenu>
