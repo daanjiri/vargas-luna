@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useExhibitStore } from '@/lib/store';
-import { useUser } from '@/components/user-context';
+import { useAuth } from '@/components/auth-provider';
 import { Plus, Loader2, ArrowLeft } from 'lucide-react';
 
 interface FlowManagerProps {
@@ -12,7 +12,7 @@ interface FlowManagerProps {
 }
 
 export const FlowManager: React.FC<FlowManagerProps> = ({ children }) => {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { currentFlow } = useExhibitStore();
 
   if (!user) {

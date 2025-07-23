@@ -169,8 +169,16 @@ export async function getFlowFromDynamoDB(userId: string, flowId: string): Promi
   return result.Item as FlowData | null;
 }
 
-// Helper function to get all flows for a user
-export async function getUserFlowsFromDynamoDB(userId: string): Promise<FlowData[]> {
+// Helper function to get all flows for a user with pagination
+export async function getUserFlowsFromDynamoDB(
+  userId: string, 
+  limit: number = 10, 
+  lastEvaluatedKey?: Record<string, any>
+): Promise<{
+  flows: FlowData[];
+  lastEvaluatedKey?: Record<string, any>;
+  hasMore: boolean;
+}> {
   const command = new QueryCommand({
     TableName: TABLE_NAME,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk_prefix)',
@@ -178,10 +186,18 @@ export async function getUserFlowsFromDynamoDB(userId: string): Promise<FlowData
       ':pk': `USER#${userId}`,
       ':sk_prefix': 'FLOW#',
     },
+    Limit: limit,
+    ScanIndexForward: false, // Sort by SK in descending order (newest first)
+    ...(lastEvaluatedKey && { ExclusiveStartKey: lastEvaluatedKey }),
   });
 
   const result = await dynamoDb.send(command);
-  return (result.Items as FlowData[]) || [];
+  
+  return {
+    flows: (result.Items as FlowData[]) || [],
+    lastEvaluatedKey: result.LastEvaluatedKey,
+    hasMore: !!result.LastEvaluatedKey,
+  };
 }
 
 // Helper function to delete flow from DynamoDB

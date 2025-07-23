@@ -53,7 +53,6 @@ export function AuthButton() {
           <DropdownMenuItem disabled className="text-sm text-gray-600 dark:text-gray-400">
             {user.email}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
             {theme === 'light' ? (
               <>

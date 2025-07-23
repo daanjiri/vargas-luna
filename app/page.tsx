@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { ProtectedWrapper } from '@/components/auth/protected-wrapper';
 import { AuthButton } from '@/components/auth/auth-button';
-import { useUser } from '@/components/user-context';
+import { useAuth } from '@/components/auth-provider';
 import { supabase } from '@/lib/supabase';
 import { Plus, Eye, Trash2, Calendar, Clock, Loader2 } from 'lucide-react';
 
@@ -26,49 +27,95 @@ interface FlowEvent {
   edges: any[];
 }
 
+interface PaginationInfo {
+  hasMore: boolean;
+  nextCursor?: string;
+  limit: number;
+}
+
 export default function HomePage() {
-  const [events, setEvents] = useState<FlowEvent[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newEventOpen, setNewEventOpen] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [creatingEvent, setCreatingEvent] = useState(false);
-  const { user } = useUser();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<{
+    hasMore: boolean;
+    lastEvaluatedKey?: string;
+  }>({ hasMore: false });
+  const [cursors, setCursors] = useState<{ [page: number]: string }>({});
+  
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Load user events
+  // Load user events with pagination
   useEffect(() => {
-    if (user) {
-      loadUserEvents();
+    // Only load events if we have a user and auth is not loading
+    if (user && !authLoading) {
+      loadUserEvents(currentPage);
+    } else if (!authLoading) {
+      // Auth finished loading but no user
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading, currentPage]);
 
-  const loadUserEvents = async () => {
+  // Prevent refetching when tab regains focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // Don't refetch data when tab becomes visible
+      // The auth state change will handle any necessary updates
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const loadUserEvents = async (page: number = 1) => {
+    if (!user || authLoading) return;
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        setLoading(false);
-        return;
-      }
+      if (!session?.access_token) return;
 
-      const response = await fetch('/api/flows/load', {
+      const cursor = page > 1 ? cursors[page] : undefined;
+      const response = await fetch(`/api/flows/load?limit=10${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
       if (response.ok) {
-        const { flows } = await response.json();
-        setEvents(flows || []);
-      } else {
-        console.error('Failed to load events');
+        const data = await response.json();
+        setEvents(data.flows || []);
+        setPagination({
+          hasMore: data.hasMore || false,
+          lastEvaluatedKey: data.lastEvaluatedKey,
+        });
+        
+        // Store cursor for next page
+        if (data.lastEvaluatedKey) {
+          setCursors(prev => ({
+            ...prev,
+            [page + 1]: data.lastEvaluatedKey,
+          }));
+        }
       }
     } catch (error) {
-      console.error('Error loading events:', error);
+      console.error('Failed to load events:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const handleCreateEvent = async () => {
@@ -121,6 +168,8 @@ export default function HomePage() {
   };
 
   const handleViewEvent = (flowId: string) => {
+    // Add loading state to prevent UI freezing
+    setLoading(true);
     router.push(`/flow/${flowId}`);
   };
 
@@ -146,8 +195,8 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        // Reload events
-        await loadUserEvents();
+        // Reload current page
+        loadUserEvents(currentPage);
       } else {
         console.error('Failed to delete event');
       }
@@ -169,17 +218,17 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b">
+      <div>
         <div className="flex h-16 items-center px-4 justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-semibold">Vargas Luna</h1>
           </div>
           <div className="flex items-center gap-2">
-            <AuthButton />
+      <AuthButton />
           </div>
         </div>
       </div>
-
+      
       <ProtectedWrapper>
         <div className="container mx-auto p-6">
           {/* Page Header */}
@@ -214,72 +263,97 @@ export default function HomePage() {
                   </Button>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Last Updated</TableHead>
-                      <TableHead>Nodes</TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {events.map((event) => (
-                      <TableRow key={event.flow_id}>
-                        <TableCell className="font-medium">
-                          {event.title}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {event.description || 'No description'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="w-4 h-4 mr-1" />
-                            {formatDate(event.created_at)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {formatDate(event.updated_at)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/20 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">
-                            {event.nodes?.length || 0} nodes
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            v{event.version}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewEvent(event.flow_id)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteEvent(event.flow_id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Last Updated</TableHead>
+                        <TableHead>Nodes</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {events.map((event) => (
+                        <TableRow key={event.flow_id}>
+                          <TableCell className="font-medium max-w-xs truncate">
+                            {event.title}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              {formatDate(event.created_at)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Clock className="w-4 h-4 mr-1" />
+                              {formatDate(event.updated_at)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/20 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                              {event.nodes?.length || 0} nodes
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewEvent(event.flow_id)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteEvent(event.flow_id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  {(currentPage > 1 || pagination.hasMore) && (
+                    <div className="mt-6 flex justify-center">
+                      <Pagination>
+                        <PaginationContent>
+                          {currentPage > 1 && (
+                            <PaginationItem>
+                              <PaginationPrevious 
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                className="cursor-pointer"
+                              />
+                            </PaginationItem>
+                          )}
+                          
+                          <PaginationItem>
+                            <PaginationLink isActive>
+                              {currentPage}
+                            </PaginationLink>
+                          </PaginationItem>
+                          
+                          {pagination.hasMore && (
+                            <PaginationItem>
+                              <PaginationNext 
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                className="cursor-pointer"
+                              />
+                            </PaginationItem>
+                          )}
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

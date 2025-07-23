@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const flowId = searchParams.get('flow_id');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const cursor = searchParams.get('cursor');
 
     if (flowId) {
       // Load specific flow
@@ -44,12 +46,34 @@ export async function GET(request: NextRequest) {
         flow,
       });
     } else {
-      // Load all flows for user
-      const flows = await getUserFlowsFromDynamoDB(user.id);
+      // Load flows with pagination
+      let lastEvaluatedKey;
+      if (cursor) {
+        try {
+          lastEvaluatedKey = JSON.parse(Buffer.from(cursor, 'base64').toString());
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'Invalid cursor' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const result = await getUserFlowsFromDynamoDB(user.id, limit, lastEvaluatedKey);
       
+      let nextCursor;
+      if (result.lastEvaluatedKey) {
+        nextCursor = Buffer.from(JSON.stringify(result.lastEvaluatedKey)).toString('base64');
+      }
+
       return NextResponse.json({
         success: true,
-        flows,
+        flows: result.flows,
+        pagination: {
+          hasMore: result.hasMore,
+          nextCursor,
+          limit,
+        },
       });
     }
 

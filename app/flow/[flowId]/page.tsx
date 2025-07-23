@@ -7,12 +7,12 @@ import { AuthButton } from '@/components/auth/auth-button';
 import { useParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { useExhibitStore } from '@/lib/store';
-import { useUser } from '@/components/user-context';
+import { useAuth } from '@/components/auth-provider';
 
 export default function FlowPage() {
   const params = useParams();
   const flowId = params.flowId as string;
-  const { user } = useUser();
+  const { user } = useAuth();
   const { currentFlow, loadFlow, createNewFlow } = useExhibitStore();
 
   useEffect(() => {
