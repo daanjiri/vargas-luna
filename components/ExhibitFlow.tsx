@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   Background,
@@ -22,8 +22,6 @@ import { VideoModal } from './modals/VideoModal';
 import { ImageModal } from './modals/ImageModal';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { DocumentationNodeData, DocumentationType } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -56,6 +54,17 @@ const FlowCanvas = () => {
     updateNode,
     deleteNode,
   } = useExhibitStore();
+
+  // Listen for Add Node button clicks from FlowManager
+  useEffect(() => {
+    const handleAddNodeClick = () => {
+      setCreateNodePosition({ x: 250, y: 250 });
+      setCreateNodeOpen(true);
+    };
+
+    window.addEventListener('addNodeClick', handleAddNodeClick);
+    return () => window.removeEventListener('addNodeClick', handleAddNodeClick);
+  }, []);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -159,6 +168,35 @@ const FlowCanvas = () => {
     setContextMenuNode(null);
   }, []);
 
+  // Modal edit and delete handlers
+  const handleEditFromModal = useCallback(() => {
+    if (modalData) {
+      setSelectedNode(modalData);
+      setEditNodeOpen(true);
+      // Close all modals
+      setExhibitModalOpen(false);
+      setAudioModalOpen(false);
+      setPdfModalOpen(false);
+      setTextModalOpen(false);
+      setVideoModalOpen(false);
+      setImageModalOpen(false);
+    }
+  }, [modalData]);
+
+  const handleDeleteFromModal = useCallback(() => {
+    if (modalData && confirm('Are you sure you want to delete this node?')) {
+      deleteNode(modalData.id);
+      // Close all modals
+      setExhibitModalOpen(false);
+      setAudioModalOpen(false);
+      setPdfModalOpen(false);
+      setTextModalOpen(false);
+      setVideoModalOpen(false);
+      setImageModalOpen(false);
+      setModalData(null);
+    }
+  }, [modalData, deleteNode]);
+
   return (
     <div className="w-full h-screen">
       <ReactFlow
@@ -173,6 +211,7 @@ const FlowCanvas = () => {
         onNodeClick={onNodeClick}
         onNodeContextMenu={onNodeContextMenu}
         nodeTypes={nodeTypes}
+        deleteKeyCode={['Backspace', 'Delete']}
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
@@ -194,18 +233,6 @@ const FlowCanvas = () => {
           </div>
         )}
       </ReactFlow>
-
-      {/* Add Node Button */}
-      <Button
-        className="absolute top-4 left-4 z-10"
-        onClick={() => {
-          setCreateNodePosition({ x: 250, y: 250 });
-          setCreateNodeOpen(true);
-        }}
-      >
-        <Plus className="w-4 h-4 mr-2" />
-        Add Node
-      </Button>
 
       {/* Context Menu */}
       <ContextMenu>
@@ -242,36 +269,48 @@ const FlowCanvas = () => {
             onOpenChange={setExhibitModalOpen}
             title={modalData.title}
             images={modalData.images || []}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
           <AudioModal
             open={audioModalOpen}
             onOpenChange={setAudioModalOpen}
             title={modalData.title}
             url={modalData.url || ''}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
           <PDFModal
             open={pdfModalOpen}
             onOpenChange={setPdfModalOpen}
             title={modalData.title}
             url={modalData.url || ''}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
           <TextModal
             open={textModalOpen}
             onOpenChange={setTextModalOpen}
             title={modalData.title}
             content={modalData.content || ''}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
           <VideoModal
             open={videoModalOpen}
             onOpenChange={setVideoModalOpen}
             title={modalData.title}
             url={modalData.url || ''}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
           <ImageModal
             open={imageModalOpen}
             onOpenChange={setImageModalOpen}
             title={modalData.title}
             images={modalData.images || []}
+            onEdit={handleEditFromModal}
+            onDelete={handleDeleteFromModal}
           />
         </>
       )}

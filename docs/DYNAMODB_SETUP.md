@@ -132,25 +132,38 @@ Each user is stored with:
 
 ## Step 6: Storing React Flow Data
 
-To store React Flow exhibit data for users, you'll create items with:
+The app automatically saves React Flow exhibit data when nodes are created or modified. Each flow is stored with:
 
 ```javascript
 {
   PK: "USER#<supabase_user_id>",
-  SK: "EXHIBIT#<timestamp>#<exhibit_id>",
-  title: "My Exhibit",
+  SK: "FLOW#<flow_id>",
+  GSI1PK: "FLOW#<flow_id>",
+  GSI1SK: "<updated_timestamp>",
+  flow_id: "flow-1234567890",
+  user_id: "<supabase_user_id>",
+  title: "My Art Exhibit",
+  description: "Description of the exhibit",
   nodes: [...],  // React Flow nodes array
   edges: [...],  // React Flow edges array
-  createdAt: "2024-01-01T00:00:00Z",
-  updatedAt: "2024-01-01T00:00:00Z",
-  entityType: "EXHIBIT"
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  version: 1
 }
 ```
 
-This structure allows you to:
-- Query all exhibits for a user: `PK = USER#<id> and SK begins_with EXHIBIT#`
-- Get a specific exhibit: `PK = USER#<id> and SK = EXHIBIT#<timestamp>#<id>`
-- List exhibits by date: Sort by SK (which includes timestamp)
+### Auto-Save Features
+
+- **Automatic Saving**: The app auto-saves your flow every time you create, update, or delete nodes
+- **Debounced Saving**: Changes are saved 2 seconds after you stop making modifications
+- **Version Control**: Each save increments the version number
+- **Visual Feedback**: The UI shows saving status and last saved time
+
+### API Endpoints
+
+- **POST `/api/flows/save`**: Saves flow data to DynamoDB
+- **GET `/api/flows/load?flow_id=<id>`**: Loads a specific flow
+- **GET `/api/flows/load`**: Lists all flows for the authenticated user
 
 ## Troubleshooting
 

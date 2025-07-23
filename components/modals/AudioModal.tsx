@@ -2,12 +2,16 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Edit, Trash2 } from 'lucide-react';
 
 interface AudioModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   url: string;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export const AudioModal: React.FC<AudioModalProps> = ({
@@ -15,16 +19,42 @@ export const AudioModal: React.FC<AudioModalProps> = ({
   onOpenChange,
   title,
   url,
+  onEdit,
+  onDelete,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>{title}</DialogTitle>
+            <div className="flex gap-2">
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEdit}
+                  className="h-8 w-8 p-0"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogHeader>
         <div className="py-4">
           <audio controls className="w-full">
-            <source src={url} />
+            <source src={url} type="audio/mpeg" />
             Your browser does not support the audio element.
           </audio>
         </div>

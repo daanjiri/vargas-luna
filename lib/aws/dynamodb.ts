@@ -20,92 +20,179 @@ export const dynamoDb = DynamoDBDocumentClient.from(client, {
 // Table name from environment variable
 export const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || 'vargas-luna-app';
 
+// Types for our data structures
+interface UserProfile {
+  user_id: string;
+  name: string;
+  description: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface FlowData {
+  flow_id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  nodes: any[];
+  edges: any[];
+  created_at: string;
+  updated_at: string;
+  version: number;
+}
+
 // Helper function to create user in DynamoDB
-export async function createUserInDynamoDB(supabaseUserId: string, email: string, metadata?: any) {
-  const timestamp = new Date().toISOString();
+export async function createUserInDynamoDB(userData: {
+  user_id: string;
+  email: string;
+  name?: string;
+  description?: string;
+}): Promise<void> {
+  const now = new Date().toISOString();
   
-  const params = {
-    TableName: TABLE_NAME,
-    Item: {
-      PK: `USER#${supabaseUserId}`,
-      SK: `PROFILE`,
-      email,
-      supabaseUserId,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      entityType: 'USER',
-      // Add any additional metadata from Supabase
-      ...metadata,
-    },
+  const userProfile: UserProfile = {
+    user_id: userData.user_id,
+    name: userData.name || 'Anonymous User',
+    description: userData.description || '',
+    email: userData.email,
+    created_at: now,
+    updated_at: now,
   };
 
-  try {
-    await dynamoDb.send(new PutCommand(params));
-    return { success: true, userId: supabaseUserId };
-  } catch (error) {
-    console.error('Error creating user in DynamoDB:', error);
-    throw error;
-  }
+  const command = new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `USER#${userData.user_id}`,
+      SK: 'PROFILE',
+      ...userProfile,
+    },
+  });
+
+  await dynamoDb.send(command);
 }
 
 // Helper function to get user from DynamoDB
-export async function getUserFromDynamoDB(supabaseUserId: string) {
-  const params = {
+export async function getUserFromDynamoDB(userId: string): Promise<UserProfile | null> {
+  const command = new GetCommand({
     TableName: TABLE_NAME,
     Key: {
-      PK: `USER#${supabaseUserId}`,
+      PK: `USER#${userId}`,
       SK: 'PROFILE',
     },
-  };
+  });
 
-  try {
-    const result = await dynamoDb.send(new GetCommand(params));
-    return result.Item;
-  } catch (error) {
-    console.error('Error getting user from DynamoDB:', error);
-    throw error;
-  }
+  const result = await dynamoDb.send(command);
+  return result.Item as UserProfile | null;
 }
 
 // Helper function to update user in DynamoDB
-export async function updateUserInDynamoDB(supabaseUserId: string, updates: Record<string, any>) {
-  const timestamp = new Date().toISOString();
+export async function updateUserInDynamoDB(
+  userId: string,
+  updates: Partial<Omit<UserProfile, 'user_id' | 'created_at'>>
+): Promise<void> {
+  const now = new Date().toISOString();
   
-  // Build update expression
-  const updateExpressionParts: string[] = [];
-  const expressionAttributeNames: Record<string, string> = {};
-  const expressionAttributeValues: Record<string, any> = {};
-  
-  Object.entries(updates).forEach(([key, value], index) => {
-    const placeholder = `#attr${index}`;
-    const valuePlaceholder = `:val${index}`;
-    
-    updateExpressionParts.push(`${placeholder} = ${valuePlaceholder}`);
-    expressionAttributeNames[placeholder] = key;
-    expressionAttributeValues[valuePlaceholder] = value;
-  });
-  
-  // Always update the updatedAt timestamp
-  updateExpressionParts.push('#updatedAt = :updatedAt');
-  expressionAttributeNames['#updatedAt'] = 'updatedAt';
-  expressionAttributeValues[':updatedAt'] = timestamp;
-  
-  const params = {
+  const command = new UpdateCommand({
     TableName: TABLE_NAME,
     Key: {
-      PK: `USER#${supabaseUserId}`,
+      PK: `USER#${userId}`,
       SK: 'PROFILE',
     },
-    UpdateExpression: `SET ${updateExpressionParts.join(', ')}`,
-    ExpressionAttributeNames: expressionAttributeNames,
-    ExpressionAttributeValues: expressionAttributeValues,
+    UpdateExpression: 'SET updated_at = :updated_at',
+    ExpressionAttributeValues: {
+      ':updated_at': now,
+    },
+  });
+
+  // Add other fields to update
+  const updateFields = Object.keys(updates).filter(key => key !== 'updated_at');
+  if (updateFields.length > 0) {
+    const setExpressions = updateFields.map(field => `${field} = :${field}`);
+    command.input.UpdateExpression = `SET ${setExpressions.join(', ')}, updated_at = :updated_at`;
+    
+    updateFields.forEach(field => {
+      command.input.ExpressionAttributeValues![`:${field}`] = updates[field as keyof typeof updates];
+    });
+  }
+
+  await dynamoDb.send(command);
+}
+
+// Helper function to save/update flow in DynamoDB
+export async function saveFlowToDynamoDB(flowData: {
+  flow_id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  nodes: any[];
+  edges: any[];
+}): Promise<void> {
+  const now = new Date().toISOString();
+  
+  // First, check if flow exists to get current version
+  const existingFlow = await getFlowFromDynamoDB(flowData.user_id, flowData.flow_id);
+  const version = existingFlow ? existingFlow.version + 1 : 1;
+  
+  const flow: FlowData = {
+    ...flowData,
+    created_at: existingFlow?.created_at || now,
+    updated_at: now,
+    version,
   };
 
-  try {
-    await dynamoDb.send(new UpdateCommand(params));
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating user in DynamoDB:', error);
-    throw error;
-  }
+  const command = new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `USER#${flowData.user_id}`,
+      SK: `FLOW#${flowData.flow_id}`,
+      GSI1PK: `FLOW#${flowData.flow_id}`,
+      GSI1SK: now,
+      ...flow,
+    },
+  });
+
+  await dynamoDb.send(command);
+}
+
+// Helper function to get flow from DynamoDB
+export async function getFlowFromDynamoDB(userId: string, flowId: string): Promise<FlowData | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `USER#${userId}`,
+      SK: `FLOW#${flowId}`,
+    },
+  });
+
+  const result = await dynamoDb.send(command);
+  return result.Item as FlowData | null;
+}
+
+// Helper function to get all flows for a user
+export async function getUserFlowsFromDynamoDB(userId: string): Promise<FlowData[]> {
+  const command = new QueryCommand({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk_prefix)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userId}`,
+      ':sk_prefix': 'FLOW#',
+    },
+  });
+
+  const result = await dynamoDb.send(command);
+  return (result.Items as FlowData[]) || [];
+}
+
+// Helper function to delete flow from DynamoDB
+export async function deleteFlowFromDynamoDB(userId: string, flowId: string): Promise<void> {
+  const command = new DeleteCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `USER#${userId}`,
+      SK: `FLOW#${flowId}`,
+    },
+  });
+
+  await dynamoDb.send(command);
 } 
