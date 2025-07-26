@@ -22,7 +22,7 @@ export default function FlowPage() {
         loadFlow(flowId).catch((error) => {
           console.error('Failed to load flow:', error);
           // If flow doesn't exist, create a default one
-          createNewFlow('Untitled Exhibit Flow', 'A new art exhibit documentation flow');
+          createNewFlow('Untitled Exhibit Flow', 'A new art exhibit documentation flow', 'exhibition');
         });
       }
     }

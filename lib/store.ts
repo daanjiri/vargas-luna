@@ -7,6 +7,9 @@ interface FlowMetadata {
   flow_id: string;
   title: string;
   description?: string;
+  event_type?: 'exhibition' | 'research' | 'curation';
+  start_date?: string;
+  end_date?: string;
   last_saved?: string;
   is_saving?: boolean;
 }
@@ -35,7 +38,7 @@ interface ExhibitStore {
   setCurrentFlow: (flow: FlowMetadata) => void;
   saveCurrentFlow: () => Promise<void>;
   loadFlow: (flowId: string) => Promise<void>;
-  createNewFlow: (title: string, description?: string) => void;
+  createNewFlow: (title: string, description?: string, eventType?: 'exhibition' | 'research' | 'curation', startDate?: string, endDate?: string) => void;
   
   // Auto-save functionality
   triggerAutoSave: () => void;
@@ -67,6 +70,9 @@ async function saveFlowToAPI(flowData: FlowMetadata, nodes: DocumentationNode[],
       flow_id: flowData.flow_id,
       title: flowData.title,
       description: flowData.description,
+      event_type: flowData.event_type,
+      start_date: flowData.start_date,
+      end_date: flowData.end_date,
       nodes,
       edges,
     }),
@@ -198,12 +204,15 @@ export const useExhibitStore = create<ExhibitStore>((set, get) => ({
         flow_id: flow.flow_id,
         title: flow.title,
         description: flow.description,
+        event_type: flow.event_type,
+        start_date: flow.start_date,
+        end_date: flow.end_date,
         last_saved: flow.updated_at,
       },
     });
   },
   
-  createNewFlow: (title: string, description?: string) => {
+  createNewFlow: (title: string, description?: string, eventType?: 'exhibition' | 'research' | 'curation', startDate?: string, endDate?: string) => {
     const flowId = `flow-${Date.now()}`;
     
     set({
@@ -213,6 +222,9 @@ export const useExhibitStore = create<ExhibitStore>((set, get) => ({
         flow_id: flowId,
         title,
         description,
+        event_type: eventType,
+        start_date: startDate,
+        end_date: endDate,
       },
     });
   },

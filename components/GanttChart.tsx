@@ -4,31 +4,46 @@ import * as d3 from 'd3';
 import { useEffect, useRef, useState } from 'react';
 import { FlowData } from '@/lib/aws/dynamodb';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@/components/theme-provider';
 
 interface GanttChartProps {
   events: FlowData[];
 }
 
+// Function to get theme-aware colors
+const getThemeColors = (isDark: boolean) => ({
+  gridLines: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 0.8)', // pure white in dark mode, strong black in light mode
+  gridOpacity: isDark ? 0.7 : 0.7, // high opacity for maximum visibility
+  axisText: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)', // pure white/black text
+  headerText: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)', // maximum contrast
+  emptyStateText: isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+  tooltipBg: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.98)',
+  tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)',
+  tooltipText: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)',
+  tooltipSubText: isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)',
+  tooltipLabelText: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.5)'
+});
+
 const eventTypeColors = {
   exhibition: {
     bg: 'rgba(244, 114, 182, 0.2)', // Pink with transparency
     border: 'rgba(244, 114, 182, 0.8)',
-    text: 'rgba(255, 255, 255, 0.9)'
+    getText: (isDark: boolean) => isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(31, 41, 55, 0.9)'
   },
   research: {
     bg: 'rgba(96, 165, 250, 0.2)', // Blue with transparency
     border: 'rgba(96, 165, 250, 0.8)',
-    text: 'rgba(255, 255, 255, 0.9)'
+    getText: (isDark: boolean) => isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(31, 41, 55, 0.9)'
   },
   curation: {
     bg: 'rgba(74, 222, 128, 0.2)', // Green with transparency
     border: 'rgba(74, 222, 128, 0.8)',
-    text: 'rgba(255, 255, 255, 0.9)'
+    getText: (isDark: boolean) => isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(31, 41, 55, 0.9)'
   },
   default: {
     bg: 'rgba(156, 163, 175, 0.2)', // Gray with transparency
     border: 'rgba(156, 163, 175, 0.8)',
-    text: 'rgba(255, 255, 255, 0.9)'
+    getText: (isDark: boolean) => isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(31, 41, 55, 0.9)'
   }
 };
 
@@ -66,9 +81,31 @@ export function GanttChart({ events }: GanttChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const router = useRouter();
+  const { theme } = useTheme();
   const [dimensions, setDimensions] = useState({ width: 1200, height: 600 });
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Determine if we're in dark mode
+  const [isDark, setIsDark] = useState(false);
+  
+  useEffect(() => {
+    const updateTheme = () => {
+      if (theme === 'system') {
+        setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      } else {
+        setIsDark(theme === 'dark');
+      }
+    };
+
+    updateTheme();
+    
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addEventListener('change', updateTheme);
+      return () => mediaQuery.removeEventListener('change', updateTheme);
+    }
+  }, [theme]);
 
   // Handle responsive sizing
   useEffect(() => {
@@ -96,6 +133,8 @@ export function GanttChart({ events }: GanttChartProps) {
     if (!events || !svgRef.current) return;
 
     const filteredEvents = events.filter(d => d.start_date && d.end_date);
+    const themeColors = getThemeColors(isDark);
+    
     if (filteredEvents.length === 0) {
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove();
@@ -106,7 +145,7 @@ export function GanttChart({ events }: GanttChartProps) {
             
         emptyGroup.append("text")
            .attr("text-anchor", "middle")
-           .style("fill", "rgba(255, 255, 255, 0.5)")
+           .style("fill", themeColors.emptyStateText)
            .style("font-size", "16px")
            .text("No events with dates to display");
            
@@ -159,13 +198,13 @@ export function GanttChart({ events }: GanttChartProps) {
       .attr('transform', `translate(0, ${contentHeight})`)
       .attr('class', 'grid')
       .style('stroke-dasharray', '3,3')
-      .style('opacity', 0.2)
+      .style('opacity', themeColors.gridOpacity)
       .call(xAxis)
       .call(g => g.select('.domain').remove())
-      .call(g => g.selectAll('.tick line').style('stroke', 'rgba(255, 255, 255, 0.3)'))
+      .call(g => g.selectAll('.tick line').style('stroke', themeColors.gridLines))
       .call(g => g.selectAll('.tick text')
         .style('font-size', '12px')
-        .style('fill', 'rgba(255, 255, 255, 0.6)')
+        .style('fill', themeColors.axisText)
         .attr('y', 15));
 
     // Timeline header
@@ -174,7 +213,7 @@ export function GanttChart({ events }: GanttChartProps) {
       .attr('y', 30)
       .style('font-size', '14px')
       .style('font-weight', '500')
-      .style('fill', 'rgba(255, 255, 255, 0.8)')
+      .style('fill', themeColors.headerText)
       .text(`Timeline: ${paddedMinDate.getFullYear()} - ${paddedMaxDate.getFullYear()}`);
 
     lanes.forEach((lane, laneIndex) => {
@@ -238,11 +277,11 @@ export function GanttChart({ events }: GanttChartProps) {
             eventGroup.append('text')
               .attr('x', barX + 15)
               .attr('y', barHeight / 2 + 5)
-              .style('fill', colors.text)
+              .style('fill', colors.getText(isDark))
               .style('font-weight', '500')
               .style('font-size', '14px')
               .style('pointer-events', 'none')
-              .style('text-shadow', '0 0 10px rgba(0, 0, 0, 0.5)')
+              .style('text-shadow', isDark ? '0 0 10px rgba(0, 0, 0, 0.5)' : '0 0 10px rgba(255, 255, 255, 0.5)')
               .text(event.title)
               .each(function() {
                 const self = d3.select(this);
@@ -257,10 +296,11 @@ export function GanttChart({ events }: GanttChartProps) {
         });
     });
 
-  }, [events, router, dimensions]);
+  }, [events, router, dimensions, isDark]);
 
   // Tooltip
   const tooltipEvent = events.find(e => e.flow_id === hoveredEvent);
+  const themeColors = getThemeColors(isDark);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -273,24 +313,24 @@ export function GanttChart({ events }: GanttChartProps) {
             left: `${Math.min(mousePosition.x + 10, dimensions.width - 250)}px`, 
             top: `${mousePosition.y - 60}px`,
             maxWidth: '250px',
-            background: 'rgba(0, 0, 0, 0.8)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'rgba(255, 255, 255, 0.9)'
+            background: themeColors.tooltipBg,
+            border: `1px solid ${themeColors.tooltipBorder}`,
+            color: themeColors.tooltipText
           }}
         >
           <div className="font-semibold mb-1">{tooltipEvent.title}</div>
           {tooltipEvent.description && (
-            <div className="text-xs mb-2 line-clamp-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+            <div className="text-xs mb-2 line-clamp-2" style={{ color: themeColors.tooltipSubText }}>
               {tooltipEvent.description}
             </div>
           )}
           <div className="text-xs space-y-1">
             <div className="flex items-center gap-2">
-              <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Type:</span>
+              <span style={{ color: themeColors.tooltipLabelText }}>Type:</span>
               <span className="capitalize font-medium">{tooltipEvent.event_type || 'Exhibition'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Duration:</span>
+              <span style={{ color: themeColors.tooltipLabelText }}>Duration:</span>
               <span>{new Date(tooltipEvent.start_date!).getFullYear()} - {new Date(tooltipEvent.end_date!).getFullYear()}</span>
             </div>
           </div>
