@@ -5,7 +5,6 @@ import ReactFlow, {
   ReactFlowProvider,
   Background,
   Controls,
-  useReactFlow,
   ReactFlowInstance,
   XYPosition,
 } from 'reactflow';
@@ -87,7 +86,7 @@ const FlowCanvas = () => {
     []
   );
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: any) => {
+  const onNodeClick = useCallback((_: React.MouseEvent, node: { data: DocumentationNodeData }) => {
     const nodeData = node.data as DocumentationNodeData;
     setModalData(nodeData);
 
@@ -119,7 +118,7 @@ const FlowCanvas = () => {
   }, []);
 
   const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: any) => {
+    (event: React.MouseEvent, node: { id: string }) => {
       event.preventDefault();
       setContextMenuNode(node.id);
       const nodeData = nodes.find(n => n.id === node.id)?.data;
@@ -225,7 +224,7 @@ const FlowCanvas = () => {
               <h2 className="text-2xl font-semibold mb-2">Welcome to Art Exhibit Documentation Flow</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">Start building your documentation graph</p>
               <div className="space-y-2 text-sm text-gray-500 dark:text-gray-500">
-                <p>• Click "Add Node" or drag anywhere on the canvas to create nodes</p>
+                <p>• Click &quot;Add Node&quot; or drag anywhere on the canvas to create nodes</p>
                 <p>• Connect nodes by dragging from one handle to another</p>
                 <p>• Right-click nodes to edit or delete them</p>
               </div>

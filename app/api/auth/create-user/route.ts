@@ -31,21 +31,17 @@ export async function POST(request: NextRequest) {
     const user = userData.user;
 
     // Create user in DynamoDB
-    const result = await createUserInDynamoDB(
-      userId,
-      email || user.email!,
-      {
-        name: name || '',
-        description: description || '',
-        emailVerified: user.email_confirmed_at ? true : false,
-        createdAt: user.created_at,
-      }
-    );
+    const result = await createUserInDynamoDB({
+      user_id: userId,
+      email: email || user.email!,
+      name: name || '',
+      description: description || '',
+    });
 
     return NextResponse.json({ 
       success: true, 
       message: 'User created in DynamoDB',
-      userId: result.userId 
+      userId: userId 
     });
 
   } catch (error) {

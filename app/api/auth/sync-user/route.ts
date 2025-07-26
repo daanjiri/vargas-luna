@@ -48,21 +48,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user in DynamoDB
-    const result = await createUserInDynamoDB(
-      user.id,
-      user.email!,
-      {
-        name: user.user_metadata?.name || '',
-        description: user.user_metadata?.description || '',
-        emailVerified: user.email_confirmed_at ? true : false,
-        createdAt: user.created_at,
-      }
-    );
+    await createUserInDynamoDB({
+      user_id: user.id,
+      email: user.email!,
+      name: user.user_metadata?.name || '',
+      description: user.user_metadata?.description || '',
+    });
 
     return NextResponse.json({ 
       success: true, 
       message: 'User synced to DynamoDB',
-      userId: result.userId,
+      userId: user.id,
       alreadyExists: false
     });
 

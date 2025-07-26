@@ -24,7 +24,7 @@ export const FlowManager: React.FC<FlowManagerProps> = ({ children }) => {
       {/* Flow Controls - positioned next to Add Node button */}
       <div className="absolute top-4 left-4 z-10 flex gap-2 items-center">
         {/* Back to Events Button */}
-        <Link href="/">
+        <Link href="/my-events">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4" />
           </Button>

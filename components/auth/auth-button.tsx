@@ -5,12 +5,11 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
 import { useTheme } from '@/components/theme-provider';
 import { AuthModal } from './auth-modal';
-import { LogOut, User, Sun, Moon } from 'lucide-react';
+import { LogOut, User, Sun, Moon, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -31,7 +30,7 @@ export function AuthButton() {
         className="fixed top-4 right-4 z-10 bg-white/10 dark:bg-black/10 backdrop-blur-md border border-gray-300 dark:border-white/10"
         disabled
       >
-        Loading...
+        <Loader2 className="h-4 w-4 animate-spin" />
       </Button>
     );
   }

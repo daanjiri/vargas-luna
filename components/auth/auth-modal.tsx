@@ -33,43 +33,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
-        
-        // If signup successful and we have a user, create them in DynamoDB
-        if (data.user) {
-          try {
-            const response = await fetch('/api/auth/create-user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: data.user.id,
-                email: data.user.email,
-                name: '', // You can add name field to the form if needed
-                description: '', // You can add description field to the form if needed
-              }),
-            });
-
-            if (!response.ok) {
-              console.error('Failed to create user in DynamoDB');
-              // Don't throw error here - user is created in Supabase, just log the error
-            } else {
-              console.log('User successfully created in DynamoDB');
-            }
-          } catch (dbError) {
-            console.error('Error creating user in DynamoDB:', dbError);
-            // Don't throw error here - user is created in Supabase, just log the error
-          }
-        }
       }
       onOpenChange(false);
-      setEmail('');
-      setPassword('');
     } catch (error: any) {
       setError(error.message);
     } finally {

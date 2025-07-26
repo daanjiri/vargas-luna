@@ -30,13 +30,16 @@ interface UserProfile {
   updated_at: string;
 }
 
-interface FlowData {
+export interface FlowData {
   flow_id: string;
   user_id: string;
   title: string;
-  description?: string;
-  nodes: any[];
-  edges: any[];
+  description: string;
+  event_type?: 'exhibition' | 'research' | 'curation';
+  start_date?: string;
+  end_date?: string;
+  nodes: Record<string, unknown>[];
+  edges: Record<string, unknown>[];
   created_at: string;
   updated_at: string;
   version: number;
@@ -125,8 +128,11 @@ export async function saveFlowToDynamoDB(flowData: {
   user_id: string;
   title: string;
   description?: string;
-  nodes: any[];
-  edges: any[];
+  event_type?: 'exhibition' | 'research' | 'curation';
+  start_date?: string;
+  end_date?: string;
+  nodes: Record<string, unknown>[];
+  edges: Record<string, unknown>[];
 }): Promise<void> {
   const now = new Date().toISOString();
   
@@ -136,6 +142,7 @@ export async function saveFlowToDynamoDB(flowData: {
   
   const flow: FlowData = {
     ...flowData,
+    description: flowData.description || '',
     created_at: existingFlow?.created_at || now,
     updated_at: now,
     version,
@@ -171,12 +178,12 @@ export async function getFlowFromDynamoDB(userId: string, flowId: string): Promi
 
 // Helper function to get all flows for a user with pagination
 export async function getUserFlowsFromDynamoDB(
-  userId: string, 
-  limit: number = 10, 
-  lastEvaluatedKey?: Record<string, any>
+  userId: string,
+  limit: number = 10,
+  lastEvaluatedKey?: Record<string, unknown>
 ): Promise<{
   flows: FlowData[];
-  lastEvaluatedKey?: Record<string, any>;
+  lastEvaluatedKey?: Record<string, unknown>;
   hasMore: boolean;
 }> {
   const command = new QueryCommand({
@@ -187,8 +194,8 @@ export async function getUserFlowsFromDynamoDB(
       ':sk_prefix': 'FLOW#',
     },
     Limit: limit,
+    ExclusiveStartKey: lastEvaluatedKey,
     ScanIndexForward: false, // Sort by SK in descending order (newest first)
-    ...(lastEvaluatedKey && { ExclusiveStartKey: lastEvaluatedKey }),
   });
 
   const result = await dynamoDb.send(command);

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { flow_id, title, description, nodes, edges } = await request.json();
+    const { flow_id, title, description, event_type, start_date, end_date, nodes, edges } = await request.json();
 
     // Validate required fields
     if (!flow_id || !title || !nodes || !edges) {
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       title,
       description,
+      event_type: event_type || 'exhibition', // Default to exhibition if not provided
+      start_date,
+      end_date,
       nodes,
       edges,
     });
