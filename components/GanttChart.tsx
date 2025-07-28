@@ -8,6 +8,7 @@ import { useTheme } from '@/components/theme-provider';
 
 interface GanttChartProps {
   events: FlowData[];
+  highlightedEventId?: string | null;
 }
 
 // Function to get theme-aware colors
@@ -77,7 +78,7 @@ function assignToLanes(events: FlowData[]): FlowData[][] {
     return lanes.map(lane => lane.events);
 }
 
-export function GanttChart({ events }: GanttChartProps) {
+export function GanttChart({ events, highlightedEventId }: GanttChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const router = useRouter();
@@ -207,14 +208,7 @@ export function GanttChart({ events }: GanttChartProps) {
         .style('fill', themeColors.axisText)
         .attr('y', 15));
 
-    // Timeline header
-    svg.append('text')
-      .attr('x', margin.left)
-      .attr('y', 30)
-      .style('font-size', '14px')
-      .style('font-weight', '500')
-      .style('fill', themeColors.headerText)
-      .text(`Timeline: ${paddedMinDate.getFullYear()} - ${paddedMaxDate.getFullYear()}`);
+
 
     lanes.forEach((lane, laneIndex) => {
         const laneGroup = g.append('g')
@@ -242,6 +236,7 @@ export function GanttChart({ events }: GanttChartProps) {
             const barX = xScale(new Date(event.start_date!));
             const barWidth = Math.max(30, xScale(new Date(event.end_date!)) - barX);
             const colors = eventTypeColors[event.event_type || 'default'];
+            const isHighlighted = highlightedEventId === event.flow_id;
 
             // Glow effect
             eventGroup.append('rect')
@@ -251,11 +246,11 @@ export function GanttChart({ events }: GanttChartProps) {
               .attr('height', barHeight + 4)
               .attr('fill', 'none')
               .attr('stroke', colors.border)
-              .attr('stroke-width', 1)
-              .attr('opacity', 0.3)
+              .attr('stroke-width', isHighlighted ? 2 : 1)
+              .attr('opacity', isHighlighted ? 0.6 : 0.3)
               .attr('rx', 10)
               .attr('ry', 10)
-              .style('filter', 'blur(4px)');
+              .style('filter', isHighlighted ? 'blur(6px)' : 'blur(4px)');
 
             // Main bar
             eventGroup.append('rect')
@@ -264,13 +259,15 @@ export function GanttChart({ events }: GanttChartProps) {
               .attr('y', 0)
               .attr('width', barWidth)
               .attr('height', barHeight)
-              .attr('fill', colors.bg)
+              .attr('fill', isHighlighted ? colors.bg.replace('0.2', '0.4') : colors.bg)
               .attr('stroke', colors.border)
-              .attr('stroke-width', 2)
+              .attr('stroke-width', isHighlighted ? 3 : 2)
+              .attr('stroke-opacity', isHighlighted ? 1 : 0.8)
               .attr('rx', 8)
               .attr('ry', 8)
               .style('backdrop-filter', 'blur(10px)')
-              .style('transition', 'all 0.3s ease');
+              .style('transition', 'all 0.3s ease')
+              .style('filter', isHighlighted ? 'brightness(1.3)' : 'none');
 
             // Truncated title
             const maxTextWidth = barWidth - 20;
@@ -296,7 +293,7 @@ export function GanttChart({ events }: GanttChartProps) {
         });
     });
 
-  }, [events, router, dimensions, isDark]);
+  }, [events, router, dimensions, isDark, highlightedEventId]);
 
   // Tooltip
   const tooltipEvent = events.find(e => e.flow_id === hoveredEvent);

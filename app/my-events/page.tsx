@@ -16,7 +16,7 @@ import { ProtectedWrapper } from '@/components/auth/protected-wrapper';
 import { AuthButton } from '@/components/auth/auth-button';
 import { useAuth } from '@/components/auth-provider';
 import { supabase } from '@/lib/supabase';
-import { Plus, Eye, Trash2, Calendar, Clock, Loader2 } from 'lucide-react';
+import { Plus, Eye, Trash2, Calendar, Loader2 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
 
 interface FlowData {
@@ -52,11 +52,17 @@ export default function HomePage() {
   const router = useRouter();
 
   const loadUserEvents = useCallback(async (page: number = 1) => {
-    if (!user || authLoading) return;
+    if (!user || authLoading) {
+      setLoading(false);
+      return;
+    }
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
+      if (!session?.access_token) {
+        setLoading(false);
+        return;
+      }
 
       const cursor = page > 1 ? cursors[page] : undefined;
       const response = await fetch(`/api/flows/load?limit=10${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, {
@@ -97,6 +103,16 @@ export default function HomePage() {
       setLoading(false);
     }
   }, [user, authLoading, currentPage, loadUserEvents]);
+
+  // Reset state when component mounts
+  useEffect(() => {
+    setLoading(true);
+    setEvents([]);
+    return () => {
+      // Cleanup on unmount
+      setLoading(false);
+    };
+  }, []);
 
   // Prevent refetching when tab regains focus
   useEffect(() => {
@@ -172,8 +188,6 @@ export default function HomePage() {
   };
 
   const handleViewEvent = (flowId: string) => {
-    // Add loading state to prevent UI freezing
-    setLoading(true);
     router.push(`/flow/${flowId}`);
   };
 
